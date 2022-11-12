@@ -6,14 +6,16 @@ require 'node'
 class Tree
   attr_accessor :values, :root
 
+  def initialize(values = [])
+    @values = sanitize(values)
+  end
+
   def sanitize(values)
     @values = values.uniq.sort!
   end
 
-  def build_tree(values)
-    return nil if values.empty?
-
-    sanitize(values)
+  def build_tree
+    return nil if @values.empty?
 
     helper = ->(array, left = 0, right = array.length - 1) do
       return nil if left > right
@@ -26,7 +28,7 @@ class Tree
       )
     end
 
-    @root = helper.call(values)
+    @root = helper.call(@values)
   end
 
   def insert(value, node = @root)
@@ -75,7 +77,7 @@ class Tree
     until result.nil?
       return result if result.val == value
 
-      result = (value < result.value) ? result.left : result.right
+      result = result.val < value ? result.right : result.left
     end
 
     result
@@ -83,14 +85,13 @@ class Tree
 
   def level_order(node = @root)
     return nil if node.nil?
-    return @values unless block_given?
 
     queue = [node]
     result = []
 
     until queue.empty?
       curr_node = queue.shift
-      result.push(yield(curr_node))
+      result << curr_node.to_s
       queue.push(curr_node.left) unless curr_node.left.nil?
       queue.push(curr_node.right) unless curr_node.right.nil?
     end
@@ -98,42 +99,55 @@ class Tree
     result
   end
 
-  def inorder
-    result = []
+  def inorder(node = @root, result = [])
+    return if node.nil?
 
-    dfs = ->(node = @root) do
-      dfs.call(node.left) unless node.left.nil?
-      result << (block_given?) ? yield(node) : node
-      dfs.call(node.right) unless node.right.nil?
+    inorder(node.left, result)
+    if block_given?
+      result << yield(node)
+    else
+      result << node.to_s
     end
+    inorder(node.right, result)
 
-    dfs
     result
   end
 
-  def preorder
-    result = []
+  def inorder_array(node = @root, result = [])
+    return if node.nil?
 
-    dfs = ->(node = @root) do
-      result << (block_given?) ? yield(node) : node
-      dfs.call(node.left) unless node.left.nil?
-      dfs.call(node.right) unless node.right.nil?
-    end
+    inorder_array(node.left, result)
+    result << node.val
+    inorder_array(node.right, result)
 
-    dfs
     result
   end
 
-  def postorder
-    result = []
+  def preorder(node = @root, result = [])
+    return if node.nil?
 
-    dfs = ->(node = @root) do
-      dfs.call(node.left) unless node.left.nil?
-      dfs.call(node.right) unless node.right.nil?
-      result << (block_given?) ? yield(node) : node
+    if block_given?
+      result << yield(node)
+    else
+      result << node.to_s
+    end
+    preorder(node.left, result)
+    preorder(node.right, result)
+
+    result
+  end
+
+  def postorder(node = @root, result = [])
+    return if node.nil?
+
+    postorder(node.left, result)
+    postorder(node.right, result)
+    if block_given?
+      result << yield(node)
+    else
+      result << node.to_s
     end
 
-    dfs
     result
   end
 
@@ -142,16 +156,16 @@ class Tree
 
     return 'No such node in the tree' if node.nil?
 
-    find_height = ->(node) do
-      return -1 if node.nil?
-
-      left_height = find_height(node.left)
-      right_height = find_height(node.right)
-
-      [left_height, right_height].max + 1
-    end
-
     find_height(node)
+  end
+
+  def find_height(node)
+    return -1 if node.nil?
+
+    left_height = find_height(node.left)
+    right_height = find_height(node.right)
+
+    [left_height, right_height].max + 1
   end
 
   def depth(node)
@@ -172,11 +186,14 @@ class Tree
     left_height = height(@root.left)
     right_height = height(@root.right)
 
-    (right_height - left_height).abs <= 1
+    return true if (right_height - left_height).abs <= 1
+
+    false
   end
 
   def rebalance
-    build_tree(inorder)
+    @values = inorder_array
+    build_tree
   end
 
   def pretty_print(node = @root, prefix = '', is_left = true)
